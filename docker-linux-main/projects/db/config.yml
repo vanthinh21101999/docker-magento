@@ -1,0 +1,21 @@
+version: '3'
+services:
+
+  nginx_db:
+    image: nginx
+
+    container_name: nginx_db
+
+    ports:
+      - 1234:80
+    volumes:
+      # Mounting the project folder
+      - ../../source/db/:/var/www/html/
+
+      - ./docker.conf:/etc/nginx/conf.d/docker.conf
+
+    networks:
+      - webnet_db
+
+networks:
+  webnet_db:

@@ -1,0 +1,92 @@
+version: '3'
+services:
+  mce:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: mce
+    ports:
+      - 3080:80
+      - 3443:443
+    volumes:
+      # Mounting the project folder
+      - ./html:/var/www/html/
+
+      # Mounting the SSL certs
+      - ../../etc/apache/docker-ssl.conf:/etc/apache2/sites-available/docker-ssl.conf
+      - ../../etc/ssl:/var/www/certs
+
+      # Add helper script
+      - ../../bin/magento:/bin/magento
+      - ../../magento/backup:/var/www/backup
+
+      # Xdebug config
+      - ./xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+
+    environment:
+      PHP_EXTENSION_XDEBUG: 1
+
+    networks:
+      - webnet_mce
+
+  mailhog_mce:
+    image: mailhog/mailhog
+    container_name: mailhog_mce
+    ports:
+      - 8888:8025
+    networks:
+      - webnet_mce
+
+  db_mce:
+    image: percona:8
+    container_name: db_mce
+    volumes:
+      - ../../services/db-data/mce:/var/lib/mysql
+      - ../../source/db:/backup
+      - ../../bin/db:/bin/db
+    environment:
+      MYSQL_ROOT_PASSWORD: admin123
+    networks:
+      - webnet_mce
+
+  #ALTER USER root IDENTIFIED WITH mysql_native_password BY 'admin123';
+
+  phpmyadmin_mce:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin_mce
+    ports:
+      - 9999:80
+    environment:
+      PMA_HOST: db_mce
+      PMA_USER: root
+      PMA_PASSWORD: admin123
+      MYSQL_ROOT_PASSWORD: admin123
+    networks:
+      - webnet_mce
+
+  redis_mce:
+    image: redis:5.0
+    container_name: redis_mce
+    networks:
+      - webnet_mce
+
+  es_mce:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.14.2
+    container_name: es_mce
+    environment:
+      - discovery.type=single-node
+      - node.name=es_mce
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ../../services/es-data/mce:/usr/share/elasticsearch/data
+    ports:
+      - 7777:9200
+    networks:
+      - webnet_mce
+
+networks:
+  webnet_mce:

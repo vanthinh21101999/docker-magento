@@ -1,0 +1,108 @@
+version: '3'
+services:
+  fpm_scg:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: fpm_scg
+
+    volumes:
+      # Mounting the project folder
+      - ./html:/var/www/html/
+
+      # Add helper script
+      - ../../bin/magento:/bin/magento
+      - ../../magento/backup:/var/www/backup
+
+      # Xdebug config
+      - ./xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+
+    environment:
+      PHP_EXTENSION_XDEBUG: 1
+
+    networks:
+      - webnet_scg
+
+  nginx_scg:
+    image: nginx
+
+    container_name: nginx_scg
+
+    ports:
+      - 4080:80
+      - 4443:443
+    volumes:
+      # Mounting the project folder
+      - ./html:/var/www/html/
+
+      # Mounting the SSL certs
+      - ../../etc/ssl:/var/www/certs
+
+      - ./docker.conf:/etc/nginx/conf.d/default.conf
+
+    depends_on:
+      - fpm_scg
+    networks:
+      - webnet_scg
+
+  mailhog_scg:
+    image: mailhog/mailhog
+    container_name: mailhog_scg
+    ports:
+      - 2222:8025
+    networks:
+      - webnet_scg
+
+  db_scg:
+    image: percona:8
+    container_name: db_scg
+    volumes:
+      - ../../services/db-data/scg:/var/lib/mysql
+      - ../../source/db:/backup
+      - ../../bin/db:/bin/db
+    environment:
+      MYSQL_ROOT_PASSWORD: admin123
+    networks:
+      - webnet_scg
+
+  #ALTER USER root IDENTIFIED WITH mysql_native_password BY 'admin123';
+
+  phpmyadmin_scg:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin_scg
+    ports:
+      - 1111:80
+    environment:
+      PMA_HOST: db_scg
+      PMA_USER: root
+      PMA_PASSWORD: admin123
+      MYSQL_ROOT_PASSWORD: admin123
+    networks:
+      - webnet_scg
+
+  redis_scg:
+    image: redis:5.0
+    container_name: redis_scg
+    networks:
+      - webnet_scg
+
+  es_scg:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.14.2
+    container_name: es_scg
+    environment:
+      - discovery.type=single-node
+      - node.name=es_scg
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ../../services/es-data/scg:/usr/share/elasticsearch/data
+    ports:
+      - 3333:9200
+    networks:
+      - webnet_scg
+
+networks:
+  webnet_scg:

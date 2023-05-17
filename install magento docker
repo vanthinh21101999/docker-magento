@@ -1,0 +1,53 @@
+- Setup MMEM locally using docker 
+1.Clone docker directory: 
+
+git clone git@git02.smartosc.com:laptc911/docker-linux.git
+2.Clone source code 
+
+cd docker-linux/projects/mmem
+git clone git@github.com:MMEM/Magento2.git html/
+3.Trong thư mục docker-linux cấp quyền cho toàn bộ các thư mục con
+
+sudo chmod 777 -R .
+sudo chown group:user -R .
+
+4.Trong thư mục mmem chạy lệnh
+
+docker-compose -f config.xml up -d
+
+5. Nếu sau khi build container mà gặp các vấn đề về quyền thì cấp lại quyền rồi build lại bằng lệnh trên.
+
+Kiểm tra xem container đã build thành công hay chưa dùng lệnh 
+
+docker ps
+
+6. Access vào db container tạo 2 database mới
+
+docker exec -it db_mmem bash
+mysql -uroot -padmin123
+create database m1_ads_test;
+create database test;
+
+7.Tiến hành import db vào trong container 
+
+docker exec -i db_mmem mysql -uroot -padmin123 m1_ads_test < <path-to>/m1_ads_test.sql
+ 
+docker exec -i db_mmem mysql -uroot -padmin123 test < <path-to>/test.sql
+
+8. Access vào elasticsearch container, cài 1 số plugin
+
+docker exec -it es_mmem bash
+bin/elasticsearch-plugin install analysis-phonetic
+bin/elasticsearch-plugin install analysis-icu
+
+9. Restart lại docker
+
+docker-compose -f config.xml restart
+
+10. Tiến hành cài đặt như bình thường trong container fpm_mmem
+
+composer i
+copy file env từ projects/mmem/source vào app/etc/ và thay thông tin config
+s:d:c, s:s:d -f, reindex, ...
+
+

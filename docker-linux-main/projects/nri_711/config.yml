@@ -1,0 +1,108 @@
+version: '3'
+services:
+  fpm_nri_711:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: fpm_nri_711
+
+    volumes:
+      # Mounting the project folder
+      - ./html:/var/www/html/
+
+      # Add helper script
+      - ../../bin/magento:/bin/magento
+      - ../../magento/backup:/var/www/backup
+
+      # Xdebug config
+      - ./xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+
+    environment:
+      PHP_EXTENSION_XDEBUG: 1
+
+    networks:
+      - webnet_nri_711
+
+  nginx_nri_711:
+    image: nginx
+
+    container_name: nginx_nri_711
+
+    ports:
+      - 3080:80
+      - 3443:443
+    volumes:
+      # Mounting the project folder
+      - ./html:/var/www/html/
+
+      # Mounting the SSL certs
+      - ../../etc/ssl:/var/www/certs
+
+      - ./docker.conf:/etc/nginx/conf.d/default.conf
+
+    depends_on:
+      - fpm_nri_711
+    networks:
+      - webnet_nri_711
+
+  mailhog_nri_711:
+    image: mailhog/mailhog
+    container_name: mailhog_nri_711
+    ports:
+      - 8888:8025
+    networks:
+      - webnet_nri_711
+
+  db_nri_711:
+    image: percona:8
+    container_name: db_nri_711
+    volumes:
+      - ../../services/db-data/nri_711:/var/lib/mysql
+      - ../../source/db:/backup
+      - ../../bin/db:/bin/db
+    environment:
+      MYSQL_ROOT_PASSWORD: admin123
+    networks:
+      - webnet_nri_711
+
+  #ALTER USER root IDENTIFIED WITH mysql_native_password BY 'admin123';
+
+  phpmyadmin_nri_711:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin_nri_711
+    ports:
+      - 9999:80
+    environment:
+      PMA_HOST: db_nri_711
+      PMA_USER: root
+      PMA_PASSWORD: admin123
+      MYSQL_ROOT_PASSWORD: admin123
+    networks:
+      - webnet_nri_711
+
+  redis_nri_711:
+    image: redis:5.0
+    container_name: redis_nri_711
+    networks:
+      - webnet_nri_711
+
+  es_nri_711:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.14.2
+    container_name: es_nri_711
+    environment:
+      - discovery.type=single-node
+      - node.name=es_nri_711
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ../../services/es-data/nri_711:/usr/share/elasticsearch/data
+    ports:
+      - 7777:9200
+    networks:
+      - webnet_nri_711
+
+networks:
+  webnet_nri_711:

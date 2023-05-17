@@ -1,0 +1,59 @@
+Install docker: https://docs.docker.com/engine/install/ubuntu/
+Install docker-compose: https://docs.docker.com/compose/install/
+Manage Docker as a non-root user: https://docs.docker.com/engine/install/linux-postinstall/
+
+Structure:
+- bin: Helper scripts
+- etc: General configuration files
+- local: Helper scripts to interact with the containers if the project folder is not the default one
+- magento: Just a backup folder, maybe not used anymore
+- projects: Setup the project here, each project should be a separate folder. some example are "sample" (using nginx), "mce" (using apache)
+- services: This folder is used to mount the service data, don't need to do anything here
+- source/db: This folder is used to store the sql file of the database. These file can be used to restore using bin/db/restore.sh helper
+
+Example of using with "sample" project:
+
+0. Checout project source:
+- mkdir projects/sample/html (If this folder does not exist)
+- cd projects/sample/html
+- git clone your-project-repositofy-link .
+
+1. Start the containers:
+- cd projects/sample
+- ./run.sh
+  or
+  ./local/start-env.sh
+
+At the first time run this command, you will need to wait for few minutes as the images need to be downloaded
+
+2. Stop the containers:
+- cd projects/sample
+- ./run.sh stop
+  or
+  ./local/stop-env.sh
+
+3. SSH the webserver container:
+- cd projects/sample
+- ./local/ssh-to-env.sh
+
+4. SSH the DB container:
+- cd projects/sample
+- ./local/db.sh
+
+
+Default containers information - example my localhost domain is "dev.local":
+- Webserver HTTPS: https://dev.local:3443
+- Webserver HTTP: http://dev.local:3080
+- Mainhog: http://dev.local:8888
+- PHPMyAdmin: http://dev.local:9999
+- ElasticSearch: http://dev.local:7777
+
+To use SSL on apache container, you will need to enable the configuration with:
+- a2ensite docker-ssl
+- service apache2 reload
+
+Known issues:
+- Cannot start some containers:
+=> Change owner/give 777 permisson to services/* folders
+=> Check the html folder and make sure the nginx.conf.sample file exists (if you use nginx container)
+=> If you use dev.local domain, then add this domain to your host file

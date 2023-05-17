@@ -1,0 +1,109 @@
+version: '3'
+services:
+  fpm_mmem:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: fpm_mmem
+
+    volumes:
+      # Mounting the project folder
+      - ./html/src:/var/www/html/
+
+      # Add helper script
+      - ../../bin/magento:/bin/magento
+      - ../../magento/backup:/var/www/backup
+
+      # Xdebug config
+      - ./xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+
+    environment:
+      PHP_EXTENSION_XDEBUG: 1
+
+    networks:
+      - webnet_mmem
+
+  nginx_mmem:
+    image: nginx
+
+    container_name: nginx_mmem
+
+    ports:
+      - 4080:80
+      - 4443:443
+    volumes:
+      # Mounting the project folder
+      - ./html/src:/var/www/html/
+
+      # Mounting the SSL certs
+      - ../../etc/ssl:/var/www/certs
+
+      - ./docker.conf:/etc/nginx/conf.d/docker.conf
+      - ./magento.conf:/etc/nginx/magento.conf
+
+    depends_on:
+      - fpm_mmem
+    networks:
+      - webnet_mmem
+
+  mailhog_mmem:
+    image: mailhog/mailhog
+    container_name: mailhog_mmem
+    ports:
+      - 2222:8025
+    networks:
+      - webnet_mmem
+
+  db_mmem:
+    image: percona:8
+    container_name: db_mmem
+    volumes:
+      - ../../services/db-data/mmem:/var/lib/mysql
+      - ../../source/db:/backup
+      - ../../bin/db:/bin/db
+    environment:
+      MYSQL_ROOT_PASSWORD: admin123
+    networks:
+      - webnet_mmem
+
+  #ALTER USER root IDENTIFIED WITH mysql_native_password BY 'admin123';
+
+  phpmyadmin_mmem:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin_mmem
+    ports:
+      - 1111:80
+    environment:
+      PMA_HOST: db_mmem
+      PMA_USER: root
+      PMA_PASSWORD: admin123
+      MYSQL_ROOT_PASSWORD: admin123
+    networks:
+      - webnet_mmem
+
+  redis_mmem:
+    image: redis:5.0
+    container_name: redis_mmem
+    networks:
+      - webnet_mmem
+
+  es_mmem:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.14.2
+    container_name: es_mmem
+    environment:
+      - discovery.type=single-node
+      - node.name=es_mmem
+      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ../../services/es-data/mmem:/usr/share/elasticsearch/data
+    ports:
+      - 3333:9200
+    networks:
+      - webnet_mmem
+
+networks:
+  webnet_mmem:
